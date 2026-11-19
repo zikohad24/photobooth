@@ -1,0 +1,6 @@
+video {
+  width: 640px;
+  max-width: 100%;
+  transform: scaleX(-1);
+  background: #000;
+}
