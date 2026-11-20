@@ -1,22 +1,40 @@
-<div class="stage">
-  <video #video autoplay playsinline muted [hidden]="photo()"></video>
+<!-- PANTALLA 1: cámara -->
+<div [hidden]="screen() !== 'camera'">
+  <div class="stage">
+    <video #video autoplay playsinline muted [hidden]="lastPhoto()"></video>
 
-  @if (photo()) {
-    <img [src]="photo()" alt="Tu foto" />
+    @if (lastPhoto()) {
+      <img [src]="lastPhoto()" alt="Foto tomada" />
+    }
+
+    @if (count() > 0) {
+      <div class="count">{{ count() }}</div>
+    }
+  </div>
+
+  @if (currentShot() > 0) {
+    <p class="shot">Foto {{ currentShot() }} de 3</p>
   }
 
-  @if (count() > 0) {
-    <div class="count">{{ count() }}</div>
-  }
+  <div class="buttons">
+    <button (click)="startSession()" [disabled]="busy() || !cameraReady()">START</button>
+  </div>
 </div>
 
-<div class="buttons">
-  @if (photo()) {
-    <button (click)="retake()">Repetir</button>
-    <button (click)="start()">Otra foto</button>
-  } @else {
-    <button (click)="start()" [disabled]="busy() || !cameraReady()">START</button>
-  }
+<!-- PANTALLA 2: revisión -->
+<div [hidden]="screen() !== 'review'">
+  <h2>¿Te gustan?</h2>
+  <div class="thumbs">
+    @for (p of photos(); track $index) {
+      <figure>
+        <img [src]="p" [alt]="'Foto ' + ($index + 1)" />
+        <button (click)="retake($index)">Repetir foto {{ $index + 1 }}</button>
+      </figure>
+    }
+  </div>
+  <div class="buttons">
+    <button (click)="restart()">Empezar de nuevo</button>
+  </div>
 </div>
 
 <p class="error">{{ error() }}</p>
