@@ -1,4 +1,22 @@
-<video #video autoplay playsinline muted></video>
-<br />
-<button (click)="startCamera()">Abrir cámara</button>
-<p>{{ error }}</p>
+<div class="stage">
+  <video #video autoplay playsinline muted [hidden]="photo()"></video>
+
+  @if (photo()) {
+    <img [src]="photo()" alt="Tu foto" />
+  }
+
+  @if (count() > 0) {
+    <div class="count">{{ count() }}</div>
+  }
+</div>
+
+<div class="buttons">
+  @if (photo()) {
+    <button (click)="retake()">Repetir</button>
+    <button (click)="start()">Otra foto</button>
+  } @else {
+    <button (click)="start()" [disabled]="busy() || !cameraReady()">START</button>
+  }
+</div>
+
+<p class="error">{{ error() }}</p>
