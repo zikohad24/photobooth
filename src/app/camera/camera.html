@@ -1,40 +1,245 @@
-<!-- PANTALLA 1: cámara -->
-<div [hidden]="screen() !== 'camera'">
-  <div class="stage">
-    <video #video autoplay playsinline muted [hidden]="lastPhoto()"></video>
+<!-- Fondo de la pantalla final (cambia con las muestras) -->
+@if (screen() === 'strip') {
+  <div class="backdrop" [class]="'backdrop bk-' + backdrop()"></div>
+}
 
-    @if (lastPhoto()) {
-      <img [src]="lastPhoto()" alt="Foto tomada" />
+<div class="booth">
+  <!-- PANTALLA 1: cámara -->
+  <section class="screen" [hidden]="screen() !== 'camera'">
+    <h2>
+      @if (currentShot() > 0) {
+        Foto {{ currentShot() }} de {{ TOTAL }}
+      } @else {
+        ¡Prepárate!
+      }
+    </h2>
+
+    <div class="frame">
+      <div class="stage" #stage>
+        <video
+          #video
+          autoplay
+          playsinline
+          muted
+          [style.filter]="filterCss()"
+          [hidden]="lastPhoto()"
+        ></video>
+
+        @if (!lastPhoto()) {
+          @for (s of placed(); track s.id) {
+            <span
+              class="sticker"
+              [class.sel]="selected() === s.id"
+              [style.left.%]="s.x"
+              [style.top.%]="s.y"
+              [style.font-size]="s.size + 'cqw'"
+              (pointerdown)="startDrag($event, s)"
+              (pointermove)="drag($event)"
+              (pointerup)="endDrag()"
+              (pointercancel)="endDrag()"
+              >{{ s.emoji }}</span
+            >
+          }
+        }
+
+        @if (lastPhoto()) {
+          <img [src]="lastPhoto()" alt="Foto tomada" />
+          <div class="flash"></div>
+        }
+
+        @if (count() > 0) {
+          <div class="count">{{ count() }}</div>
+        }
+      </div>
+    </div>
+
+    <!-- Ranura por donde sale la foto -->
+    <div class="printer">
+      <div class="bar"></div>
+      @if (lastPhoto()) {
+        <div class="eject">
+          <div class="polaroid">
+            <img [src]="lastPhoto()" alt="" />
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="slots">
+      @for (n of slots; track n) {
+        <div class="slot" [class.current]="currentShot() === n + 1">
+          @if (photos()[n]) {
+            <img [src]="photos()[n]" [alt]="'Foto ' + (n + 1)" />
+          } @else {
+            <span>{{ n + 1 }}</span>
+          }
+        </div>
+      }
+    </div>
+
+    @if (photos().length === 0 && !busy()) {
+      <div class="filters">
+        @for (f of filters; track f.id) {
+          <button class="chip" [class.on]="filter() === f.id" (click)="filter.set(f.id)">
+            {{ f.name }}
+          </button>
+        }
+      </div>
+
+      <div class="stickers">
+        <p class="label2">Pon un emoji y arrástralo sobre la cámara</p>
+        <div class="palette">
+          @for (e of stickerList; track e) {
+            <button class="emo" (click)="addSticker(e)" [attr.aria-label]="'Añadir ' + e">
+              {{ e }}
+            </button>
+          }
+        </div>
+
+        @if (placed().length) {
+          <div class="sizer">
+            <label>
+              Tamaño
+              <input
+                type="range"
+                min="8"
+                max="60"
+                [value]="selectedSize()"
+                (input)="setSize(+$any($event.target).value)"
+              />
+            </label>
+            <button class="chip" (click)="clearStickers()">Quitar todos</button>
+          </div>
+        }
+      </div>
     }
 
-    @if (count() > 0) {
-      <div class="count">{{ count() }}</div>
+    <div class="buttons">
+      <button class="primary big" (click)="startSession()" [disabled]="busy() || !cameraReady()">
+        START
+      </button>
+    </div>
+  </section>
+
+  <!-- PANTALLA 2: revisión (cuadro blanco grande en columna) -->
+  <section class="screen" [hidden]="screen() !== 'review'">
+    <h2>¿Te gustan?</h2>
+
+    <div class="thumbs">
+      @for (p of photos(); track $index) {
+        <figure>
+          <img [src]="p" [alt]="'Foto ' + ($index + 1)" />
+          <button class="small" (click)="retake($index)">Repetir foto {{ $index + 1 }}</button>
+        </figure>
+      }
+
+      <!-- Segundo cuadro: dibujos del evento -->
+      <div class="eventbox" [style.background]="eventData().tint">
+        @if (eventData().emojis.length) {
+          <div class="emojis">
+            @for (e of eventData().emojis; track $index) {
+              <span>{{ e }}</span>
+            }
+          </div>
+        }
+        <strong>{{ title() || 'PHOTOBOOTH' }}</strong>
+        @if (showDate()) {
+          <small>{{ today }}</small>
+        }
+      </div>
+    </div>
+
+    <p class="label2">Tipo de evento</p>
+    <div class="events">
+      @for (e of events; track e.id) {
+        <button class="chip" [class.on]="event() === e.id" (click)="setEvent(e.id)">
+          {{ e.name }}
+        </button>
+      }
+    </div>
+
+    <div class="buttons">
+      <button class="primary" (click)="createStrip()">Crear tira</button>
+      <button class="ghost" (click)="restart()">Empezar de nuevo</button>
+    </div>
+  </section>
+
+  <!-- PANTALLA 3: tira + panel -->
+  <section class="screen" [hidden]="screen() !== 'strip'">
+    @if (stripUrl()) {
+      <img class="strip" [src]="stripUrl()" alt="Tira de fotos" />
     }
-  </div>
 
-  @if (currentShot() > 0) {
-    <p class="shot">Foto {{ currentShot() }} de 3</p>
-  }
+    <div class="panel">
+      <p class="panel-title">PHOTOBOOTH</p>
 
-  <div class="buttons">
-    <button (click)="startSession()" [disabled]="busy() || !cameraReady()">START</button>
-  </div>
+      <p class="label">Evento</p>
+      <div class="events-panel">
+        @for (e of events; track e.id) {
+          <button class="chip2" [class.on]="event() === e.id" (click)="setEvent(e.id)">
+            {{ e.name }}
+          </button>
+        }
+      </div>
+
+      <p class="label">Fondo</p>
+      <div class="swatches">
+        @for (b of backdrops; track b.id) {
+          <button
+            class="swatch"
+            [class]="'swatch bk-' + b.id"
+            [class.on]="backdrop() === b.id"
+            [attr.aria-label]="b.name"
+            [title]="b.name"
+            (click)="setBackdrop(b.id)"
+          ></button>
+        }
+      </div>
+
+      <input
+        class="text"
+        type="text"
+        maxlength="24"
+        [value]="title()"
+        (input)="setTitle($any($event.target).value)"
+        placeholder="Texto de la tira"
+        aria-label="Texto de la tira"
+      />
+
+      <div class="options">
+        <label>
+          <input
+            type="checkbox"
+            [checked]="showDate()"
+            (change)="setShowDate($any($event.target).checked)"
+          />
+          Fecha
+        </label>
+        <button class="chip2" [class.on]="paper() === 'white'" (click)="setPaper('white')">
+          Tira blanca
+        </button>
+        <button class="chip2" [class.on]="paper() === 'black'" (click)="setPaper('black')">
+          Tira negra
+        </button>
+      </div>
+
+      @if (qrUrl()) {
+        <div class="qrbox">
+          <img [src]="qrUrl()" alt="Código QR para descargar la tira" />
+          <p>Escanéalo con el móvil (misma Wi‑Fi)</p>
+        </div>
+      }
+
+      <div class="buttons">
+        <button class="primary" (click)="downloadStrip()">Descargar</button>
+        <button class="primary" (click)="generateQr()" [disabled]="qrBusy()">
+          {{ qrBusy() ? 'Creando…' : 'QR para el móvil' }}
+        </button>
+        <button class="ghost" (click)="backToReview()">Volver</button>
+        <button class="ghost" (click)="newSession()">Nueva sesión</button>
+      </div>
+    </div>
+  </section>
+
+  <p class="error" role="alert">{{ error() }}</p>
 </div>
-
-<!-- PANTALLA 2: revisión -->
-<div [hidden]="screen() !== 'review'">
-  <h2>¿Te gustan?</h2>
-  <div class="thumbs">
-    @for (p of photos(); track $index) {
-      <figure>
-        <img [src]="p" [alt]="'Foto ' + ($index + 1)" />
-        <button (click)="retake($index)">Repetir foto {{ $index + 1 }}</button>
-      </figure>
-    }
-  </div>
-  <div class="buttons">
-    <button (click)="restart()">Empezar de nuevo</button>
-  </div>
-</div>
-
-<p class="error">{{ error() }}</p>
