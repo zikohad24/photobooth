@@ -35,7 +35,7 @@ export class Camera implements AfterViewInit, OnDestroy {
   @ViewChild('stage') stageEl!: ElementRef<HTMLElement>;
 
   readonly TOTAL = 4;
-  readonly API = 'http://localhost:3000';
+    readonly API = location.hostname === 'localhost' ? 'http://localhost:3000' : '';
   slots = [0, 1, 2, 3];
 
   filters: PhotoFilter[] = [
